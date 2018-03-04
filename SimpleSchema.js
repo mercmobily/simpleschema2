@@ -10,13 +10,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 /*
 TODO:
+  X Make sure _cast uses an object much like _param for consistency
+
+  X Make it actually run/work
+
+  - Rename object variables so that they make more sense
+
   - See if the cycle in param can be the same in cast:
     if (options.onlyObjectValues) targetObject = object
     else targetObject = this.structure
 
-  - Turn validate, _cast and _param into await/async code
+  - See if the code can be written without so many side effects
 
-  - Make sure _cast uses an object much like _param for consistency
+  - Turn validate, _cast and _param into await/async code
 
   - Check if "required" can be treated like a normal parameter, no special treatment
 
@@ -27,102 +33,102 @@ var CircularJSON = require('circular-json')
 var SimpleSchema = class {
   constructor (structure, options) {
     this.structure = structure
-    this.options = typeof (options) !== 'undefined' ? options : {}
+    this.options = options || {}
   }
 
   // Built-in types
-
-  noneType (definition, value, fieldName, options, failedCasts) {
-    return value
+  // definition, value, fieldName, options, failedCasts
+  noneType (p) {
+    return p.value
   }
 
-  stringType (definition, value, fieldName, options, failedCasts) {
+  stringType (p) {
     // Undefined: return '';
-    if (typeof (value) === 'undefined') return ''
-    if (value === null) return ''
+    if (typeof (p.value) === 'undefined') return ''
+    if (p.value === null) return ''
 
     // No toString() available: failing to cast
-    if (typeof (value.toString) === 'undefined') {
-      failedCasts[ fieldName ] = true
+    if (typeof (p.value.toString) === 'undefined') {
+      p.failedCasts[ p.fieldName ] = true
       return
     }
 
     // Return cast value
-    return value.toString()
+    return p.value.toString()
   }
 
-  blobType (definition, value, fieldName, options, failedCasts) {
+  blobType (p) {
     // Undefined: return '';
-    if (typeof (value) === 'undefined') return ''
-    if (value === null) return ''
+    if (typeof (p.value) === 'undefined') return ''
+    if (p.value === null) return ''
 
-    return value
+    return p.value
   }
 
-  numberType (definition, value, fieldName, options, failedCasts) {
+  numberType (p) {
     // Undefined: return 0;
-    if (typeof (value) === 'undefined') return 0
+    if (typeof (p.value) === 'undefined') return 0
 
     // If Number() returns NaN, fail
-    var r = Number(value)
+    var r = Number(p.value)
     if (isNaN(r)) {
-      failedCasts[ fieldName ] = true
-      return
+      p.failedCasts[ p.fieldName ] = true
+      return p.value
     }
 
     // Return cast value
     return r
   }
 
-  dateType (definition, value, fieldName, options, failedCasts) {
+  dateType (p) {
     // Undefined: return a new date object
-    if (typeof (value) === 'undefined') {
+    if (typeof (p.value) === 'undefined') {
       return new Date()
     }
 
     // If new Date() returns NaN, date was not corect, fail
-    var r = new Date(value)
+    var r = new Date(p.value)
     if (isNaN(r)) {
-      failedCasts[ fieldName ] = true
-      return value
+      p.failedCasts[ p.fieldName ] = true
+      return p.value
     }
 
     // return cast value
     return r
   }
 
-  arrayType (definition, value, fieldName, options, failedCasts) {
-    return Array.isArray(value) ? value : [ value ]
+  arrayType (p) {
+    return Array.isArray(p.value) ? p.value : [ p.value ]
   }
 
-  serializeType (definition, value, fieldName, options, failedCasts) {
+  serializeType (p) {
     var r
 
-    if (options.deserialize) {
-      if (typeof (value) !== 'string') {
-        failedCasts[ fieldName ] = true
-        return value
+    if (p.options.deserialize) {
+      if (typeof (p.value) !== 'string') {
+        p.failedCasts[ p.fieldName ] = true
+        return p.value
       }
 
       try {
           // Attempt to stringify
-        r = CircularJSON.parse(value)
+        r = CircularJSON.parse(p.value)
 
           // It worked: return r
         return r
       } catch (e) {
-        failedCasts[ fieldName ] = true
-        return value
+        p.failedCasts[ p.fieldName ] = true
+        return p.value
       }
     } else {
       try {
-        r = CircularJSON.stringify(value)
+        r = CircularJSON.stringify(p.value)
 
           // It worked: return r
         return r
       } catch (e) {
-        failedCasts[ fieldName ] = true
-        return value
+        p.failedCasts[ p.fieldName ] = true
+        return p.value
       }
 
     //
@@ -131,23 +137,23 @@ var SimpleSchema = class {
 
   // Cast an ID for this particular engine. If the object is in invalid format, it won't
   // get cast, and as a result check will fail
-  booleanType (definition, value, fieldName, options, failedCasts) {
-    if (typeof (value) === 'string') {
-      if (value === (definition.stringFalseWhen || 'false')) return false
-      else if ((value === (definition.stringTrueWhen || 'true')) || (value === (definition.stringTrueWhen || 'on'))) return true
+  booleanType (p) {
+    if (typeof (p.value) === 'string') {
+      if (p.value === (p.definition.stringFalseWhen || 'false')) return false
+      else if ((p.value === (p.definition.stringTrueWhen || 'true')) || (p.value === (p.definition.stringTrueWhen || 'on'))) return true
       else return false
     } else {
-      return !!value
+      return !!p.value
     }
   }
 
   // Cast an ID for this particular engine. If the object is in invalid format, it won't
   // get cast, and as a result check will fail
-  idType (definition, value, fieldName, options, failedCasts) {
-    var n = parseInt(value)
+  idType (p) {
+    var n = parseInt(p.value)
     if (isNaN(n)) {
-      failedCasts[ fieldName ] = true
-      return value
+      p.failedCasts[ p.fieldName ] = true
+      return p.value
     } else {
       return n
     }
@@ -236,7 +242,7 @@ var SimpleSchema = class {
     var failedRequired = {}
     options = typeof (options) === 'undefined' ? {} : options
     var targetObject
-    var resultObject = {}
+    var castObject = {}
 
     // Set the targetObject. If the target is the object itself,
     // then missing fields won't be a problem
@@ -248,7 +254,7 @@ var SimpleSchema = class {
       var definition = this.structure[ fieldName ]
 
       // Copying the value over
-      if (typeof (object[fieldName]) !== 'undefined') resultObject[ fieldName ] = object[ fieldName ]
+      if (typeof (object[fieldName]) !== 'undefined') castObject[ fieldName ] = object[ fieldName ]
 
       // If the definition is undefined, and it's an object-values only check,
       // then the missing definition mustn't be a problem.
@@ -273,15 +279,22 @@ var SimpleSchema = class {
 
       // Run the xxxType function for a specific type
       if (typeof (this[ definition.type + 'Type' ]) === 'function') {
-        var result = this[ definition.type + 'Type' ](definition, object[ fieldName ], fieldName, options, failedCasts)
-        if (typeof (result) !== 'undefined') resultObject[ fieldName ] = result
+        var result = this[ definition.type + 'Type' ]({
+          definition,
+          value: object[ fieldName ],
+          fieldName,
+          options,
+          failedCasts
+        })
+
+        if (typeof (result) !== 'undefined') castObject[ fieldName ] = result
       } else {
         throw (new Error('No casting function found, type probably wrong: ' + definition.type))
       }
     }
 
     // That's it -- return resulting Object
-    cb(null, resultObject, failedCasts, failedRequired)
+    return { castObject, failedCasts, failedRequired }
   }
 
   // Options and values used:
@@ -292,8 +305,9 @@ var SimpleSchema = class {
   _params (object, objectBeforeCast, options, failedCasts, failedRequired, cb) {
     options = typeof (options) === 'undefined' ? {} : options
 
+    var targetObject
     var errors = []
-    var resultObject = {}
+    var paramObject = {}
 
     for (var k in objectBeforeCast) {
       if (typeof (this.structure[ k ]) === 'undefined') {
@@ -301,13 +315,18 @@ var SimpleSchema = class {
       }
     }
 
-    // Copying object into resultObject
+    // Copying object into paramObject
     for (k in object) {
-      if (typeof (object[ k ]) !== 'undefined') resultObject[ k ] = object[ k ]
+      if (typeof (object[ k ]) !== 'undefined') paramObject[ k ] = object[ k ]
     }
 
-    // Scan schema
-    for (var fieldName in this.structure) {
+    // Set the targetObject. If the target is the object itself,
+    // then missing fields won't be a problem
+    if (options.onlyObjectValues) targetObject = object
+    else targetObject = this.structure
+
+    for (var fieldName in targetObject) {
+      // Scan schema
       var definition = this.structure[ fieldName ]
 
       // The `onlyObjectValues` option is on: skip anything that is not in the object
@@ -338,26 +357,26 @@ var SimpleSchema = class {
 
           var result = this[ parameterName + 'Param' ]({
             definition: definition,
-            object: resultObject,
             fieldName: fieldName,
-            options: options,
-            value: resultObject[ fieldName ],
-            valueBeforeParams: object[ fieldName ],
-            objectBeforeCast: objectBeforeCast,
-            objectBeforeParams: object,
             parameterName: parameterName,
             parameterValue: definition[ parameterName ],
+            options: options,
+            object: paramObject,
+            objectBeforeCast: objectBeforeCast,
+            objectBeforeParams: object,
+            value: paramObject[ fieldName ],
+            valueBeforeParams: object[ fieldName ],
             errors: errors
           })
 
-          if (typeof (result) !== 'undefined') resultObject[ fieldName ] = result
+          if (typeof (result) !== 'undefined') paramObject[ fieldName ] = result
 
           // If `errors` grew, the following parameters will not be applied
           if (errors.length !== errLength) break
         }
       }
     }
-    cb(null, resultObject, errors)
+    return { paramObject, errors }
   }
 
   // Options and values used (the ones used by _cast() and _params() together)
@@ -372,28 +391,18 @@ var SimpleSchema = class {
   // it if it's `undefined` and it's not required. Otherwise, casting will make validation fail for unrequired and absent values
   //
   // This will run _cast and _param
-  validate (originalObject, options, cb) {
+  validate (originalObject, options) {
     var self = this
-
-    if (typeof (cb) === 'undefined') {
-      cb = options
-      options = {}
-    }
 
     options = typeof (options) === 'undefined' ? {} : options
 
-    self._cast(originalObject, options, function (err, castObject, failedCasts, failedRequired) {
-      if (err) return cb(err)
+    let { castObject, failedCasts, failedRequired } = self._cast(originalObject, options)
+    let { paramObject, errors } = self._params(castObject, originalObject, options, failedCasts, failedRequired)
 
-      self._params(castObject, originalObject, options, failedCasts, failedRequired, function (err, paramObject, errors) {
-        if (err) return cb(err)
-
-        Object.keys(failedCasts).forEach(function (fieldName) {
-          errors.push({ field: fieldName, message: 'Error during casting' })
-        })
-        return cb(null, paramObject, errors)
-      })
+    Object.keys(failedCasts).forEach(function (fieldName) {
+      errors.push({ field: fieldName, message: 'Error during casting' })
     })
+    return { resultObject: paramObject, errors }
   }
 
   cleanup (object, parameterName) {
@@ -410,3 +419,14 @@ var SimpleSchema = class {
 }
 
 exports = module.exports = SimpleSchema
+
+var s = new SimpleSchema({
+  name: { type: 'string', trim: 50 },
+  surname: { type: 'string', required: true, trim: 10 },
+  age: { type: 'number', min: 10, max: 20 }
+
+})
+
+let { resultObject, errors } = s.validate({ name: 'Tony', age: '15' }, { onlyObjectValues: true })
+
+console.log('RESULT:', resultObject, errors)
