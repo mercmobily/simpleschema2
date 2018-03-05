@@ -8,6 +8,10 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+/*
+  [ ] Write tests
+*/
+
 var CircularJSON = require('circular-json')
 
 var SimpleSchema = class {
@@ -29,7 +33,7 @@ var SimpleSchema = class {
 
     // No toString() available: failing to cast
     if (typeof (p.value.toString) === 'undefined') {
-      throw this.castError(p.fieldName)
+      throw this._typeError(p.fieldName)
     }
 
     // Return cast value
@@ -51,7 +55,7 @@ var SimpleSchema = class {
     // If Number() returns NaN, fail
     var r = Number(p.value)
     if (isNaN(r)) {
-      throw this.castError(p.fieldName)
+      throw this._typeError(p.fieldName)
     }
 
     // Return cast value
@@ -67,7 +71,7 @@ var SimpleSchema = class {
     // If new Date() returns NaN, date was not corect, fail
     var r = new Date(p.value)
     if (isNaN(r)) {
-      throw this.castError(p.fieldName)
+      throw this._typeError(p.fieldName)
     }
 
     // return cast value
@@ -83,7 +87,7 @@ var SimpleSchema = class {
 
     if (p.options.deserialize) {
       if (typeof (p.value) !== 'string') {
-        throw this.castError(p.fieldName)
+        throw this._typeError(p.fieldName)
       }
 
       try {
@@ -93,7 +97,7 @@ var SimpleSchema = class {
           // It worked: return r
         return r
       } catch (e) {
-        throw this.castError(p.fieldName)
+        throw this._typeError(p.fieldName)
       }
     } else {
       try {
@@ -102,7 +106,7 @@ var SimpleSchema = class {
           // It worked: return r
         return r
       } catch (e) {
-        throw this.castError(p.fieldName)
+        throw this._typeError(p.fieldName)
       }
 
     //
@@ -126,7 +130,7 @@ var SimpleSchema = class {
   idType (p) {
     var n = parseInt(p.value)
     if (isNaN(n)) {
-      throw this.castError(p.fieldName)
+      throw this._typeError(p.fieldName)
     } else {
       return n
     }
@@ -136,20 +140,20 @@ var SimpleSchema = class {
 
   minParam (p) {
     if (p.definition.type === 'number' && p.value && p.value < p.parameterValue) {
-      throw this.typeError(p.fieldName, "Field's value is too low")
+      throw this._paramError(p.fieldName, "Field's value is too low")
     }
     if (p.definition.type === 'string' && p.value && p.value.length < p.parameterValue) {
-      throw this.typeError(p.fieldName, 'Field is too short')
+      throw this._paramError(p.fieldName, 'Field is too short')
     }
   }
 
   maxParam (p) {
     if (p.definition.type === 'number' && p.value && p.value > p.parameterValue) {
-      throw this.typeError(p.fieldName, "Field's value is too high")
+      throw this._paramError(p.fieldName, "Field's value is too high")
     }
 
     if (p.definition.type === 'string' && p.value && p.value.length > p.parameterValue) {
-      throw this.typeError(p.fieldName, 'Field is too low')
+      throw this._paramError(p.fieldName, 'Field is too low')
     }
   }
 
@@ -159,7 +163,7 @@ var SimpleSchema = class {
     }
 
     var r = p.parameterValue.call(this, p.object, p.object[ p.fieldName ], p.fieldName)
-    if (typeof (r) === 'string') throw this.typeError(p.fieldName, r)
+    if (typeof (r) === 'string') throw this._paramError(p.fieldName, r)
   }
 
   uppercaseParam (p) {
@@ -180,7 +184,7 @@ var SimpleSchema = class {
     var v
     if (typeof (p.objectBeforeCast[ p.fieldName ]) === 'undefined') {
       if (typeof (p.parameterValue) === 'function') {
-        v = p.parameterValue.call()
+        v = p.parameterValue(p)
       } else {
         v = p.parameterValue
       }
@@ -192,17 +196,17 @@ var SimpleSchema = class {
     var bc = p.objectBeforeCast[ p.fieldName ]
     var bcs = typeof (bc) !== 'undefined' && bc !== null && bc.toString ? bc.toString() : ''
     if (!Array.isArray(p.value) && typeof (bc) !== 'undefined' && bcs === '' && p.parameterValue) {
-      throw this.typeError(p.fieldName, 'Field cannot be empty')
+      throw this._paramError(p.fieldName, 'Field cannot be empty')
     }
   }
 
-  castError (field) {
+  _typeError (field) {
     var e = new Error('Error with field: ' + field)
     e.errorObject = { field, message: 'Error during casting' }
     return e
   }
 
-  typeError (field, message) {
+  _paramError (field, message) {
     var e = new Error(message)
     e.errorObject = { field, message }
     return e
@@ -225,6 +229,7 @@ var SimpleSchema = class {
     // Copy object over
     validatedObject = Object.assign({}, object)
 
+    // Check for spurious fields not in the schema
     for (fieldName in object) {
       if (typeof this.structure[ fieldName ] === 'undefined') {
         errors.push({ field: fieldName, message: 'Field not allowed' })
@@ -241,7 +246,7 @@ var SimpleSchema = class {
 
       skipCast = false
 
-      // Skip cast/param if so required by the skipField array
+      // Skip cast/param if so required by the skipFields array
       if (Array.isArray(options.skipFields) && options.skipFields.indexOf(fieldName) !== -1) {
         skipCast = true
       }
@@ -270,6 +275,7 @@ var SimpleSchema = class {
             fieldName,
             object: validatedObject,
             objectBeforeCast: object,
+            valueBeforeCast: object[ fieldName ],
             options
           })
         } catch (e) {
@@ -293,8 +299,8 @@ var SimpleSchema = class {
               value: validatedObject[ fieldName ],
               fieldName,
               object: validatedObject,
-              objectBeforeParams: object,
-              valueBeforeParams: object[ fieldName ],
+              objectBeforeCast: object,
+              valueBeforeCast: object[ fieldName ],
               parameterName,
               parameterValue: definition[ parameterName ],
               options: options
