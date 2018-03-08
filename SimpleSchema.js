@@ -182,7 +182,7 @@ var SimpleSchema = class {
 
   defaultParam (p) {
     var v
-    if (typeof (p.objectBeforeCast[ p.fieldName ]) === 'undefined') {
+    if (typeof (p.valueBeforeCast) === 'undefined') {
       if (typeof (p.parameterValue) === 'function') {
         v = p.parameterValue(p)
       } else {
@@ -193,7 +193,7 @@ var SimpleSchema = class {
   }
 
   notEmptyParam (p) {
-    var bc = p.objectBeforeCast[ p.fieldName ]
+    var bc = p.valueBeforeCast
     var bcs = typeof (bc) !== 'undefined' && bc !== null && bc.toString ? bc.toString() : ''
     if (!Array.isArray(p.value) && typeof (bc) !== 'undefined' && bcs === '' && p.parameterValue) {
       throw this._paramError(p.fieldName, 'Field cannot be empty')
@@ -228,6 +228,8 @@ var SimpleSchema = class {
 
     // Copy object over
     validatedObject = Object.assign({}, object)
+
+    options = options || {}
 
     // Check for spurious fields not in the schema
     for (fieldName in object) {
@@ -275,7 +277,6 @@ var SimpleSchema = class {
             fieldName,
             object: validatedObject,
             objectBeforeCast: object,
-            valueBeforeCast: object[ fieldName ],
             options
           })
         } catch (e) {
@@ -337,6 +338,7 @@ var SimpleSchema = class {
 
 exports = module.exports = SimpleSchema
 
+/*
 var s = new SimpleSchema({
   name: { type: 'string', trim: 50 },
   surname: { type: 'string', required: true, trim: 10 },
@@ -347,3 +349,4 @@ var s = new SimpleSchema({
 let { validatedObject, errors } = s.validate({ name: 'Tony', _surname: 'Mobily1234567890', age: '25' }, { __onlyObjectValues: true })
 
 console.log('RESULT:', validatedObject, errors)
+*/
