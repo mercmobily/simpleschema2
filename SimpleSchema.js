@@ -139,7 +139,7 @@ var SimpleSchema = class {
   // Built-in parameters
 
   minParam (p) {
-    console.log('DOING MIN!', p)
+    if (typeof p.value === 'undefined') return
     if (p.definition.type === 'number' && Number(p.value) < p.parameterValue) {
       throw this._paramError(p.fieldName, "Field's value is too low")
     }
@@ -149,6 +149,7 @@ var SimpleSchema = class {
   }
 
   maxParam (p) {
+    if (typeof p.value === 'undefined') return
     if (p.definition.type === 'number' && Number(p.value) > p.parameterValue) {
       throw this._paramError(p.fieldName, "Field's value is too high")
     }
@@ -196,7 +197,7 @@ var SimpleSchema = class {
   notEmptyParam (p) {
     var bc = p.valueBeforeCast
     var bcs = typeof bc !== 'undefined' && bc !== null && bc.toString ? bc.toString() : ''
-    if (!Array.isArray(p.value) && typeof (bc) !== 'undefined' && bcs === '' && p.parameterValue) {
+    if (p.parameterValue && !Array.isArray(p.value) && typeof (bc) !== 'undefined' && bcs === '') {
       throw this._paramError(p.fieldName, 'Field cannot be empty')
     }
   }
