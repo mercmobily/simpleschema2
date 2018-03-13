@@ -139,20 +139,21 @@ var SimpleSchema = class {
   // Built-in parameters
 
   minParam (p) {
-    if (p.definition.type === 'number' && p.value && p.value < p.parameterValue) {
+    console.log('DOING MIN!', p)
+    if (p.definition.type === 'number' && Number(p.value) < p.parameterValue) {
       throw this._paramError(p.fieldName, "Field's value is too low")
     }
-    if (p.definition.type === 'string' && p.value && p.value.length < p.parameterValue) {
+    if (p.definition.type === 'string' && p.value.toString && p.value.toString().length < p.parameterValue) {
       throw this._paramError(p.fieldName, 'Field is too short')
     }
   }
 
   maxParam (p) {
-    if (p.definition.type === 'number' && p.value && p.value > p.parameterValue) {
+    if (p.definition.type === 'number' && Number(p.value) > p.parameterValue) {
       throw this._paramError(p.fieldName, "Field's value is too high")
     }
 
-    if (p.definition.type === 'string' && p.value && p.value.length > p.parameterValue) {
+    if (p.definition.type === 'string' && p.value.toString && p.value.toString().length > p.parameterValue) {
       throw this._paramError(p.fieldName, 'Field is too low')
     }
   }
@@ -167,11 +168,11 @@ var SimpleSchema = class {
   }
 
   uppercaseParam (p) {
-    if (typeof (p.value) !== 'string') return
+    if (typeof p.value !== 'string') return
     return p.value.toUpperCase()
   }
   lowercaseParam (p) {
-    if (typeof (p.value) !== 'string') return
+    if (typeof p.value !== 'string') return
     return p.value.toLowerCase()
   }
 
@@ -194,7 +195,7 @@ var SimpleSchema = class {
 
   notEmptyParam (p) {
     var bc = p.valueBeforeCast
-    var bcs = typeof (bc) !== 'undefined' && bc !== null && bc.toString ? bc.toString() : ''
+    var bcs = typeof bc !== 'undefined' && bc !== null && bc.toString ? bc.toString() : ''
     if (!Array.isArray(p.value) && typeof (bc) !== 'undefined' && bcs === '' && p.parameterValue) {
       throw this._paramError(p.fieldName, 'Field cannot be empty')
     }
@@ -221,6 +222,7 @@ var SimpleSchema = class {
   // This will run _cast and _param
   validate (object, options) {
     var errors = []
+    var skipBoth
     var skipCast
     var validatedObject
     var targetObject
@@ -246,45 +248,53 @@ var SimpleSchema = class {
     for (fieldName in targetObject) {
       var definition = this.structure[ fieldName ]
 
+      // The checking logic will check if cast -- or both cast and params --
+      // should be skipped
       skipCast = false
+      skipBoth = false
 
       // Skip cast/param if so required by the skipFields array
       if (Array.isArray(options.skipFields) && options.skipFields.indexOf(fieldName) !== -1) {
-        skipCast = true
+        skipBoth = true
       }
-      // Skip casting if value is `undefined` AND it's not required
-      if (!definition.required && typeof (object[ fieldName ]) === 'undefined') {
-        skipCast = true
-      }
-      // Skip casting if value is `undefined` AND it IS required (enriching error)
+
+      // Skip castParam if value is `undefined` AND it IS required (enriching error)
       // NOTE: this won't happen if 'required' is in the list of parameters to be skipped
+
       if (definition.required && typeof (object[ fieldName ]) === 'undefined') {
         if (!this._paramToBeSkipped(fieldName, 'required', options.skipParams)) {
-          skipCast = true
+          skipBoth = true
           errors.push({ field: fieldName, message: 'Field required: ' + fieldName })
         }
       }
 
-      // If cast is skipped for whatever reason, params will never go through either
-      if (skipCast) continue
+      // Skip casting if value is `undefined` AND it's not required
+      if (!definition.required && typeof (object[ fieldName ]) === 'undefined') {
+        skipCast = true
+      }
 
-      // Run the xxxType function for a specific type
-      if (typeof (this[ definition.type + 'Type' ]) === 'function') {
-        try {
-          var result = this[ definition.type + 'Type' ]({
-            definition,
-            value: object[ fieldName ],
-            fieldName,
-            object: validatedObject,
-            objectBeforeCast: object,
-            options
-          })
-        } catch (e) {
-          errors.push(e.errorObject)
+      // If cast is skipped for whatever reason, params will never go through either
+      if (skipBoth) continue
+
+      if (!skipCast) {
+        // Run the xxxType function for a specific type
+        if (typeof (this[ definition.type + 'Type' ]) === 'function') {
+          try {
+            var result = this[ definition.type + 'Type' ]({
+              definition,
+              value: object[ fieldName ],
+              fieldName,
+              object: validatedObject,
+              objectBeforeCast: object,
+              options
+            })
+          } catch (e) {
+            errors.push(e.errorObject)
+          }
+          if (typeof result !== 'undefined') validatedObject[ fieldName ] = result
+        } else {
+          throw (new Error('No casting function found, type probably wrong: ' + definition.type))
         }
-        if (typeof result !== 'undefined') validatedObject[ fieldName ] = result
-      } else {
-        throw (new Error('No casting function found, type probably wrong: ' + definition.type))
       }
 
       for (var parameterName in this.structure[ fieldName ]) {
@@ -338,15 +348,15 @@ var SimpleSchema = class {
 
 exports = module.exports = SimpleSchema
 
-/*
 var s = new SimpleSchema({
+  level: { type: 'number', default: 10 },
   name: { type: 'string', trim: 50 },
   surname: { type: 'string', required: true, trim: 10 },
   age: { type: 'number', min: 10, max: 20 }
-
 })
 
-let { validatedObject, errors } = s.validate({ name: 'Tony', _surname: 'Mobily1234567890', age: '25' }, { __onlyObjectValues: true })
+debugger;
+
+let { validatedObject, errors } = s.validate({ name: 'Tony', surname: 'Mobily1234567890' }, { __onlyObjectValues: true })
 
 console.log('RESULT:', validatedObject, errors)
-*/
