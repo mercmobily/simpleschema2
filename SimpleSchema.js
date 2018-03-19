@@ -8,10 +8,6 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-/*
-  [ ] Write tests
-*/
-
 var CircularJSON = require('circular-json')
 
 var SimpleSchema = class {
@@ -153,7 +149,7 @@ var SimpleSchema = class {
     }
 
     if (p.definition.type === 'string' && p.value && p.value.length > p.parameterValue) {
-      throw this._paramError(p.fieldName, 'Field is too low')
+      throw this._paramError(p.fieldName, 'Field is too long')
     }
   }
 
@@ -229,6 +225,7 @@ var SimpleSchema = class {
     // Copy object over
     validatedObject = Object.assign({}, object)
 
+    // Options must be an object regardless
     options = options || {}
 
     // Check for spurious fields not in the schema
