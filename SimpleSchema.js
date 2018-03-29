@@ -91,10 +91,10 @@ var SimpleSchema = class {
       }
 
       try {
-          // Attempt to stringify
+        // Attempt to stringify
         r = CircularJSON.parse(p.value)
 
-          // It worked: return r
+        // It worked: return r
         return r
       } catch (e) {
         throw this._typeError(p.fieldName)
@@ -103,7 +103,7 @@ var SimpleSchema = class {
       try {
         r = CircularJSON.stringify(p.value)
 
-          // It worked: return r
+        // It worked: return r
         return r
       } catch (e) {
         throw this._typeError(p.fieldName)
