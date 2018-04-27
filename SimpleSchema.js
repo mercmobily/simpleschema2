@@ -28,6 +28,9 @@ var SimpleSchema = class {
 
   stringType (p) {
     // Undefined: return '';
+    if (p.value === p.definition.default) return p.value
+    if (p.value === '' && p.definition.default === null) return null
+
     if (typeof (p.value) === 'undefined') return ''
     if (p.value === null) return ''
 
@@ -42,14 +45,17 @@ var SimpleSchema = class {
 
   blobType (p) {
     // Undefined: return '';
+    if (p.value === p.definition.default) return p.value
     if (typeof (p.value) === 'undefined') return ''
-    if (p.value === null) return ''
+    if (p.value === '' && p.definition.default === null) return null
 
     return p.value
   }
 
   numberType (p) {
     // Undefined: return 0;
+    if (p.value === p.definition.default) return p.value
+    if (p.value === '' && p.definition.default === null) return null
     if (typeof (p.value) === 'undefined') return 0
 
     // If Number() returns NaN, fail
@@ -63,6 +69,8 @@ var SimpleSchema = class {
   }
 
   dateType (p) {
+    if (p.value === p.definition.default) return p.value
+
     // Undefined: return a new date object
     if (typeof (p.value) === 'undefined') {
       return new Date()
@@ -79,6 +87,8 @@ var SimpleSchema = class {
   }
 
   arrayType (p) {
+    if (p.value === p.definition.default) return p.value
+
     return Array.isArray(p.value) ? p.value : [ p.value ]
   }
 
@@ -116,6 +126,8 @@ var SimpleSchema = class {
   // Cast an ID for this particular engine. If the object is in invalid format, it won't
   // get cast, and as a result check will fail
   booleanType (p) {
+    if (p.value === p.definition.default) return p.value
+
     if (typeof (p.value) === 'string') {
       if (p.value === (p.definition.stringFalseWhen || 'false')) return false
       else if ((p.value === (p.definition.stringTrueWhen || 'true')) || (p.value === (p.definition.stringTrueWhen || 'on'))) return true
