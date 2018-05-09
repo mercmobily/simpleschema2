@@ -190,8 +190,14 @@ var SimpleSchema = class {
   }
 
   trimParam (p) {
-    if (typeof (p.value) !== 'string') return
-    return p.value.substr(0, p.parameterValue)
+    // For strings, trim works as intended: it will trim the cast string
+    if (typeof (p.value) === 'string') {
+      return p.value.substr(0, p.parameterValue)
+
+    // For non-string values, it will however check the original value. If it's longer than it should, it will puke
+    } else {
+      if (String(p.valueBeforeCast).length > p.parameterValue) throw this._paramError(p.fieldName, 'Value out of range')
+    }
   }
 
   defaultParam (p) {
