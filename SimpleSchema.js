@@ -196,7 +196,7 @@ var SimpleSchema = class {
 
     // For non-string values, it will however check the original value. If it's longer than it should, it will puke
     } else {
-      if (String(Number(p.valueBeforeCast)).length > p.parameterValue) throw this._paramError(p.fieldName, 'Value out of range')
+      if (Number.isInteger(Number(p.valueBeforeCast)) && String(Number(p.valueBeforeCast)).length > p.parameterValue) throw this._paramError(p.fieldName, 'Value out of range')
     }
   }
 
