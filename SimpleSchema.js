@@ -44,7 +44,6 @@ var SimpleSchema = class {
   }
 
   blobType (p) {
-    // Undefined: return '';
     if (p.value === p.definition.default) return p.value
     if (typeof (p.value) === 'undefined') return ''
     if (p.value === '' && p.definition.default === null) return null
@@ -53,10 +52,24 @@ var SimpleSchema = class {
   }
 
   numberType (p) {
-    // Undefined: return 0;
     if (p.value === p.definition.default) return p.value
     if (p.value === '' && p.definition.default === null) return null
     if (typeof (p.value) === 'undefined') return 0
+
+    // If Number() returns NaN, fail
+    var r = Number(p.value)
+    if (isNaN(r)) {
+      throw this._typeError(p.fieldName)
+    }
+
+    // Return cast value
+    return r
+  }
+
+  // This is like "number", but it will set timestamp as NULL for empty strings
+  timestampType (p) {
+    if (p.value === p.definition.default) return p.value
+    if (p.value === '' || typeof (p.value) === 'undefined' || p.value === null) return null
 
     // If Number() returns NaN, fail
     var r = Number(p.value)
