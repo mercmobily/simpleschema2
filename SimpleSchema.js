@@ -53,7 +53,7 @@ var SimpleSchema = class {
 
   numberType (p) {
     if (p.value === p.definition.default) return p.value
-    if (p.value === '' && p.definition.default === null) return null
+    if ((p.value === '' || p.value === null) && (p.definition.default === null || p.definition.canBeNull)) return null
     if (typeof (p.value) === 'undefined') return 0
 
     // If Number() returns NaN, fail
