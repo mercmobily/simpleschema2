@@ -27,7 +27,7 @@ var SimpleSchema = class {
   }
 
   stringType (p) {
-    if (typeof (p.value) === 'undefined') return ''
+    if (typeof p.value === 'undefined' || p.value === null ) return ''
 
     // No toString() available: failing to cast
     if (typeof (p.value.toString) === 'undefined') {
@@ -271,8 +271,6 @@ var SimpleSchema = class {
     for (fieldName in targetObject) {
       var definition = this.structure[ fieldName ]
 
-      if (fieldName == 'arrivalDraftFwd') debugger
-
       if (!definition) continue
 
       // The checking logic will check if cast -- or both cast and params --
@@ -401,3 +399,4 @@ let { validatedObject, errors } = s.validate({ name: 'Tony', surname: 'Mobily123
 
 console.log('RESULT:', validatedObject, errors)
 */
+
