@@ -27,12 +27,7 @@ var SimpleSchema = class {
   }
 
   stringType (p) {
-    // Undefined: return '';
-    if (p.value === p.definition.default) return p.value
-    if (p.value === '' && p.definition.default === null) return null
-
     if (typeof (p.value) === 'undefined') return ''
-    if (p.value === null) return ''
 
     // No toString() available: failing to cast
     if (typeof (p.value.toString) === 'undefined') {
@@ -44,16 +39,10 @@ var SimpleSchema = class {
   }
 
   blobType (p) {
-    if (p.value === p.definition.default) return p.value
-    if (typeof (p.value) === 'undefined') return ''
-    if (p.value === '' && p.definition.default === null) return null
-
     return p.value
   }
 
   numberType (p) {
-    if (p.value === p.definition.default) return p.value
-    if ((p.value === '' || p.value === null) && (p.definition.default === null || p.definition.canBeNull)) return null
     if (typeof (p.value) === 'undefined') return 0
 
     // If Number() returns NaN, fail
@@ -68,9 +57,6 @@ var SimpleSchema = class {
 
   // This is like "number", but it will set timestamp as NULL for empty strings
   timestampType (p) {
-    if (p.value === p.definition.default) return p.value
-    if (p.value === '' || typeof (p.value) === 'undefined' || p.value === null) return null
-
     // If Number() returns NaN, fail
     var r = Number(p.value)
     if (isNaN(r)) {
@@ -82,8 +68,6 @@ var SimpleSchema = class {
   }
 
   dateType (p) {
-    if (p.value === p.definition.default) return p.value
-
     // Undefined: return a new date object
     if (typeof (p.value) === 'undefined') {
       return new Date()
@@ -100,8 +84,6 @@ var SimpleSchema = class {
   }
 
   arrayType (p) {
-    if (p.value === p.definition.default) return p.value
-
     return Array.isArray(p.value) ? p.value : [ p.value ]
   }
 
@@ -139,8 +121,6 @@ var SimpleSchema = class {
   // Cast an ID for this particular engine. If the object is in invalid format, it won't
   // get cast, and as a result check will fail
   booleanType (p) {
-    if (p.value === p.definition.default) return p.value
-
     if (typeof (p.value) === 'string') {
       if (p.value === (p.definition.stringFalseWhen || 'false')) return false
       else if ((p.value === (p.definition.stringTrueWhen || 'true')) || (p.value === (p.definition.stringTrueWhen || 'on'))) return true
@@ -194,17 +174,17 @@ var SimpleSchema = class {
   }
 
   uppercaseParam (p) {
-    if (typeof p.value !== 'string' || typeof p.value !== 'string') return
+    if (p.definition.type !== 'string' || typeof p.value !== 'string') return
     return p.value.toUpperCase()
   }
   lowercaseParam (p) {
-    if (typeof p.value !== 'string' || typeof p.value !== 'string') return
+    if (p.definition.type !== 'string' || typeof p.value !== 'string') return
     return p.value.toLowerCase()
   }
 
   trimParam (p) {
     // For strings, trim works as intended: it will trim the cast string
-    if (typeof (p.value) === 'string' && typeof p.value === 'string') {
+    if (p.definition.type === 'string' && typeof p.value === 'string') {
       return p.value.substr(0, p.parameterValue)
 
     // For non-string values, it will however check the original value. If it's longer than it should, it will puke
@@ -227,7 +207,7 @@ var SimpleSchema = class {
 
   notEmptyParam (p) {
     var bc = p.valueBeforeCast
-    var bcs = typeof bc !== 'undefined' && bc !== null && bc.toString ? bc.toString() : ''
+    var bcs = (typeof bc !== 'undefined' && bc !== null && bc.toString ? bc.toString() : '')
     if (p.parameterValue && !Array.isArray(p.value) && typeof (bc) !== 'undefined' && bcs === '') {
       throw this._paramError(p.fieldName, 'Field cannot be empty')
     }
@@ -250,6 +230,13 @@ var SimpleSchema = class {
   //  * options.onlyObjectValues             -- Will apply cast for existing object's keys rather than the schema itself
   //  * options.skipFields                   -- To know what casts need to be skipped
   //  * options.skipParams                   -- Won't apply specific params for specific fields
+  //  * options.emptyAsNull                  -- Empty string values will be cast to null (also as a per-field option)
+  //  * options.canBeNull                    -- All values can be null (also as a per-field option)
+  //
+  //  * Common parameters for every type (to be implemented)
+  //    * required -- the field is required
+  //    * canBeNull -- the "null" value is always accepted
+  //    * emptyAsNull -- an empty string will be stored as null
   //
   // This will run _cast and _param
   validate (object, options) {
@@ -259,6 +246,10 @@ var SimpleSchema = class {
     var validatedObject
     var targetObject
     var fieldName
+
+    function emptyString(s) {
+      return String(s) === ''
+    }
 
     // Copy object over
     validatedObject = Object.assign({}, object)
@@ -280,12 +271,17 @@ var SimpleSchema = class {
     for (fieldName in targetObject) {
       var definition = this.structure[ fieldName ]
 
+      if (fieldName == 'arrivalDraftFwd') debugger
+
       if (!definition) continue
 
       // The checking logic will check if cast -- or both cast and params --
       // should be skipped
       skipCast = false
       skipBoth = false
+
+      var canBeNull = definition.canBeNull || options.canBeNull
+      var emptyAsNull = definition.emptyAsNull || options.emptyAsNull
 
       // Skip cast/param if so required by the skipFields array
       if (Array.isArray(options.skipFields) && options.skipFields.indexOf(fieldName) !== -1) {
@@ -305,6 +301,17 @@ var SimpleSchema = class {
       // Skip casting if value is `undefined` AND it's not required
       if (!definition.required && typeof (object[ fieldName ]) === 'undefined') {
         skipCast = true
+      }
+
+      // If it's null, and default is null or canBeNull is set, then skip everything else
+      if (object[ fieldName ] === null && (definition.default === null || canBeNull)) {
+        skipBoth = true
+      }
+
+      // If emptyAsNull is set, and it's an empty string, set it to null and skip everything else
+      if ( emptyAsNull && emptyString(object[ fieldName ])) {
+        validatedObject[ fieldName ] = null
+        skipBoth = true
       }
 
       // If cast is skipped for whatever reason, params will never go through either
