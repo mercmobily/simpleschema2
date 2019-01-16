@@ -8,20 +8,19 @@ Main features:
 
 * It's _very_ easy to use and extend (adding both data types and parameters)
 * It's tailored for `req.body`, built for casting simple (not nested) data strucures
-* It down-to-earth ES6 code
-* Fully unit-tested _(note: no longer true after rewrite)_
+* It down-to-earth ES2015 code
+* Fully unit-tested _(note: no longer true after rewrite, but it will be soon)_
 
 # Brief introduction
 
 Here is SimpleSchema in a nutshell:
-
     var Schema = require( 'simpleschema' );
 
     personSchema = new Schema({
       name: { type: 'string', trim: 20 },
       age:  { type: 'number', default: 30, max: 140 },
-      rank: { type: 'number', default: 99, max: 99, doNotSave: true },
-    });
+      rank: { type: 'number', default: 99, max: 99 },
+    });  
 
 In a normal node/Express application, you would simply use the `validate()` method of personSchema against `req.body`:
 
@@ -53,7 +52,7 @@ Note that in this field:
       rank: { type: 'number', default: 99, max: 99, doNotSave: true },
 
 * `type` is the field type. It means that when running personSchema.validate(), `rank` will be cast as a number
-* `default`, `max`, `doNotSave` are the "field parameters".
+* `default`, `max` are the "field parameters".
 
 ## The schema description: all features
 
@@ -71,8 +70,8 @@ Here is a schema which covers _every_ single feature in terms of types and param
       name:    { type: 'string', default: 'SOMETHING', uppercase: true, trim: 4, required: true, notEmpty: true },
       surname: { type: 'string', lowercase: true },
       age:     { type: 'number', default: 15, min: 0, max: 150, validator: fieldValidatorFunc },
-      date:    { type: 'date' },
-      list:    { type: 'array' },
+      date:    { type: 'date', emptyAsNull: true},
+      list:    { type: 'array', canBeNull: true },
       various: { type: 'serialize', required: false },
     })
 
@@ -84,9 +83,14 @@ Note:
  * the `serialize` type will convert an object into a string. You need to use the option `{ deserialize: true }` when validating if you want to do the opposite.
  * `min`, `max` on `string`s will check the string length; on `number`s will check number value
  * `uppercase`, `lowercase`, `trim` will only apply to `string`s
- * `required` will fail if the  object's corresponding attribute (before casting) was `undefined` and will never fail for arrays;
  * `notEmpty` will fail if the  object's corresponding attribute was `v == ''` (note the weak `==`) and will never fail for arrays
+ * `required` will fail if the  object's corresponding attribute (before casting) was `undefined` and will never fail for arrays;
+ * `emptyAsNull` will make sure that values that cast to an empty string are converted to `null`.
+ * `canBeNull` will allow values to be stored as null, bypassing casting and parameters.
  * If `fieldValidatorFunc` returns a string, then an error will be added for that field. Note that this function is synchronous
+
+Note: `required`, `emptyAsNull` and `canBeNull` are the only parameters implemeted directly into the `validate` function itself, which is SimpleSchema's core. Everything else is  
+
 
 # Validating against a schema
 
@@ -209,6 +213,15 @@ The option `skipParams` is used when you want to decide which parameters you wan
 
 Note that `name` is still unchanged: it didn't get lowercased, nor trimmed.
 
+### `emptyAsNull`
+
+If this parameter is `true`, then values that would be cast to empty strings will be cast to `null`. This is to be used if you prefer to store `null` on your database rather than empty values.
+
+
+### `canBeNull`
+
+If this parameter is `true`, then `null` will be accepted as value, and casting and validation will be completely skipped.
+
 ### `deserialize`
 
 In some cases, you might want `serialize` to work the other way around: you want to convert a JSON string into an object. This is common if, for example, you want to 1) Receive the data via `req.body` 2) Store the data after `schema.validate()` (any `serialize` field will be serialized) 3) Later on, fetch the data from the database 4) Validate that data against the same schema (in which case, you will use the option `{ deserialize: true }`).
@@ -322,15 +335,18 @@ Or when `validate()` encounters:
 
 it will look for `this.maxParam`, which is:
 
+````
     maxParam (p) {
-      if (p.definition.type === 'number' && p.value && p.value > p.parameterValue) {
-        throw this._paramError(p.fieldName, "Field's value is too high") //._
+      if (typeof p.value === 'undefined') return
+      if (p.definition.type === 'number' && typeof p.value === 'number' && Number(p.value) > p.parameterValue) {
+        throw this._paramError(p.fieldName, "Field's value is too high")
       }
 
-      if (p.definition.type === 'string' && p.value && p.value.length > p.parameterValue) {
-        throw this._paramError(p.fieldName, 'Field is too low') //._
+      if (p.definition.type === 'string' && p.value.toString && p.value.toString().length > p.parameterValue) {
+        throw this._paramError(p.fieldName, 'Field is too low')
       }
     }
+````
 
 Whatever is returned by this function will be used as the new value for the field, before applying parameters. If nothing is returned, then the object's value isn't changed (this is useful for parameters like `min` and `max`, which are meant to generate errors more than modifying afield)
 
@@ -357,7 +373,6 @@ This is the full list of functions available with this module:
 ## `constructor(schemaObject)`
 
 Make up the schema object, assigning the `this.structure` field.
-
 
 ## `xxxType( p )`
 
@@ -386,3 +401,4 @@ Parameters:
 
   * `object` The object to cleanup
   * `parameterName` The name of the parameter that will be hunted down. Any field that in the schema structure has thar parameter fill be deleted from `object`
+
