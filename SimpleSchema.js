@@ -165,7 +165,7 @@ var SimpleSchema = class {
 
   minParam (p) {
     if (typeof p.value === 'undefined') return
-    if (p.definition.type === 'number' && p.value === 'number' && Number(p.value) < p.parameterValue) {
+    if (p.definition.type === 'number' && typeof p.value === 'number' && Number(p.value) < p.parameterValue) {
       throw this._paramError(p.fieldName, "Field's value is too low")
     }
     if (p.definition.type === 'string' && p.value.toString && p.value.toString().length < p.parameterValue) {
