@@ -278,7 +278,6 @@ var SimpleSchema = class {
     else targetObject = this.structure
 
     for (fieldName in targetObject) {
-      if (fieldName == 'arrivalDraftFwd') debugger
       var definition = this.structure[ fieldName ]
 
       if (!definition) continue
