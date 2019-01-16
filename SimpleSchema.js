@@ -165,7 +165,7 @@ var SimpleSchema = class {
 
   minParam (p) {
     if (typeof p.value === 'undefined') return
-    if (p.definition.type === 'number' && Number(p.value) < p.parameterValue) {
+    if (p.definition.type === 'number' && p.value === 'number' && Number(p.value) < p.parameterValue) {
       throw this._paramError(p.fieldName, "Field's value is too low")
     }
     if (p.definition.type === 'string' && p.value.toString && p.value.toString().length < p.parameterValue) {
@@ -175,7 +175,7 @@ var SimpleSchema = class {
 
   maxParam (p) {
     if (typeof p.value === 'undefined') return
-    if (p.definition.type === 'number' && Number(p.value) > p.parameterValue) {
+    if (p.definition.type === 'number' && typeof p.value === 'number' && Number(p.value) > p.parameterValue) {
       throw this._paramError(p.fieldName, "Field's value is too high")
     }
 
@@ -194,17 +194,17 @@ var SimpleSchema = class {
   }
 
   uppercaseParam (p) {
-    if (typeof p.value !== 'string') return
+    if (typeof p.value !== 'string' || typeof p.value !== 'string') return
     return p.value.toUpperCase()
   }
   lowercaseParam (p) {
-    if (typeof p.value !== 'string') return
+    if (typeof p.value !== 'string' || typeof p.value !== 'string') return
     return p.value.toLowerCase()
   }
 
   trimParam (p) {
     // For strings, trim works as intended: it will trim the cast string
-    if (typeof (p.value) === 'string') {
+    if (typeof (p.value) === 'string' && typeof p.value === 'string') {
       return p.value.substr(0, p.parameterValue)
 
     // For non-string values, it will however check the original value. If it's longer than it should, it will puke
@@ -278,6 +278,7 @@ var SimpleSchema = class {
     else targetObject = this.structure
 
     for (fieldName in targetObject) {
+      if (fieldName == 'arrivalDraftFwd') debugger
       var definition = this.structure[ fieldName ]
 
       if (!definition) continue
