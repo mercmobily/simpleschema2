@@ -87,6 +87,8 @@ Note:
  * `required` will fail if the  object's corresponding attribute (before casting) was `undefined` and will never fail for arrays;
  * `emptyAsNull` will make sure that values that cast to an empty string are converted to `null`.
  * `canBeNull` will allow values to be stored as null, bypassing casting and parameters.
+ * `string` type checks parameter `noTrim` (it will not trim if there)
+ * `boolean` type checks parameters `stringFalseWhen` and `stringTrueWhen` so that the strings `false` and `true` can be seen as false and true respectively
  * If `fieldValidatorFunc` returns a string, then an error will be added for that field. Note that this function is synchronous
 
 Note: `required`, `emptyAsNull` and `canBeNull` are the only parameters implemeted directly into the `validate` function itself, which is SimpleSchema's core. Everything else is  
@@ -401,4 +403,3 @@ Parameters:
 
   * `object` The object to cleanup
   * `parameterName` The name of the parameter that will be hunted down. Any field that in the schema structure has thar parameter fill be deleted from `object`
-

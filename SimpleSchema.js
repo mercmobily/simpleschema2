@@ -34,8 +34,9 @@ var SimpleSchema = class {
       throw this._typeError(p.fieldName)
     }
 
-    // Return cast value
-    return p.value.toString()
+    // Return cast value, trimmed by default (unless noTrim is passed to the definition)
+    let r = p.value.toString()
+    return p.definition.noTrim ? r : r.trim()
   }
 
   blobType (p) {
@@ -399,4 +400,3 @@ let { validatedObject, errors } = s.validate({ name: 'Tony', surname: 'Mobily123
 
 console.log('RESULT:', validatedObject, errors)
 */
-
