@@ -161,7 +161,7 @@ var SimpleSchema = class {
     }
 
     if (p.definition.type === 'string' && p.value.toString && p.value.toString().length > p.parameterValue) {
-      throw this._paramError(p.fieldName, 'Field is too low')
+      throw this._paramError(p.fieldName, 'Field is too long')
     }
   }
 
